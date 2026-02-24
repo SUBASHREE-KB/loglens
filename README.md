@@ -67,7 +67,7 @@ For LogLens to work, you need:
 ### Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/loglens.git
+git clone https://github.com/SUBASHREE-KB/loglens.git
 cd loglens
 ```
 
@@ -91,8 +91,8 @@ npm install
 # Go back to root directory
 cd ..
 
-# Copy example environment file
-cp .env.example .env
+# Create .env file
+
 ```
 
 Edit the `.env` file with your settings:
@@ -124,8 +124,6 @@ DISCOVERY_MODE=auto
 # SUPABASE_URL=https://your-project.supabase.co
 # SUPABASE_KEY=your_supabase_anon_key
 
-# Note: Source code settings (for fix generation) are configured
-# via the Settings page in the dashboard - no need to set them here
 ```
 
 ---
@@ -185,34 +183,6 @@ VITE v5.0.8  ready in 500 ms
 ### Step 5: Open the Dashboard
 
 Open your browser and go to: **http://localhost:5173**
-
----
-
-## Using the Demo Microservices (Optional)
-
-If you don't have your own microservices, we provide demo services for testing:
-
-```bash
-# Start the demo microservices
-docker-compose -f docker-compose.services.yml up -d
-
-# This starts:
-# - api-gateway (port 3001)
-# - user-service (port 3002)
-# - db-service (port 3003)
-# - auth-service (port 3004)
-# - order-service (port 3005)
-```
-
-The demo services simulate realistic errors (timeouts, memory issues, etc.) so you can see LogLens in action.
-
-To generate traffic and trigger errors:
-```bash
-# Start the traffic generator
-cd traffic-generator
-npm install
-npm start
-```
 
 ---
 
@@ -337,15 +307,7 @@ loglens/
 │   │   ├── hooks/             # Custom hooks (useSocket)
 │   │   └── App.jsx
 │   └── package.json
-├── services/                  # Demo microservices (optional)
-│   ├── api-gateway/
-│   ├── user-service/
-│   ├── db-service/
-│   ├── auth-service/
-│   └── order-service/
-├── traffic-generator/         # Generates test traffic (optional)
-├── docker-compose.services.yml # Demo services only
-├── .env.example               # Environment template
+├── .env                       # Environment 
 ├── ARCHITECTURE.md            # System architecture
 └── README.md
 ```
@@ -432,16 +394,6 @@ sudo usermod -aG docker $USER
 
 ---
 
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Commit changes: `git commit -m 'Add amazing feature'`
-4. Push to branch: `git push origin feature/amazing-feature`
-5. Open a Pull Request
-
----
-
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
@@ -454,8 +406,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [LangChain](https://js.langchain.com/) for AI orchestration
 - [React Flow](https://reactflow.dev/) for graph visualization
 
----
 
-**Built for DevDash 2026**
-
-*LogLens - From Error to Fix in Seconds, Not Hours*
