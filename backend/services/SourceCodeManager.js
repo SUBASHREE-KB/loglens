@@ -41,7 +41,7 @@ class SourceCodeManager {
   getStatus() {
     return {
       mode: this.mode,
-      localPath: this.mode === 'local' ? path.resolve(__dirname, '..', this.localPath) : null,
+      localPath: this.mode === 'local' ? this.resolvePath(this.localPath) : null,
       localPathConfigured: this.mode === 'local',
       githubConnected: !!this.githubUser,
       githubUser: this.githubUser,
@@ -64,14 +64,17 @@ class SourceCodeManager {
 
     if (localPath) {
       this.localPath = localPath;
-      // Verify the path exists
+      // Only verify path existence in local mode
       if (this.mode === 'local') {
         const exists = await this.verifyLocalPath(localPath);
         if (!exists) {
-          throw new Error(`Local path does not exist: ${localPath}`);
+          throw new Error(`Local path does not exist: ${this.resolvePath(localPath)}`);
         }
       }
     }
+
+    // When switching away from local mode, retain localPath for if user switches back
+    // but do NOT validate it
 
     if (githubToken) {
       this.githubToken = githubToken;
@@ -100,9 +103,21 @@ class SourceCodeManager {
   /**
    * Verify local path exists and is accessible
    */
+  /**
+   * Resolve a user-supplied path to absolute.
+   * Absolute paths are used as-is; relative paths are resolved
+   * relative to the backend root (one level above __dirname).
+   */
+  resolvePath(rawPath) {
+    if (path.isAbsolute(rawPath)) {
+      return rawPath;
+    }
+    return path.resolve(__dirname, '..', rawPath);
+  }
+
   async verifyLocalPath(localPath) {
     try {
-      const resolvedPath = path.resolve(__dirname, '..', localPath);
+      const resolvedPath = this.resolvePath(localPath);
       const stat = await fs.stat(resolvedPath);
       return stat.isDirectory();
     } catch (error) {
@@ -247,7 +262,7 @@ class SourceCodeManager {
     const mapped = this.mapServiceName(serviceName);
 
     if (this.mode === 'local') {
-      return path.resolve(__dirname, '..', this.localPath, mapped);
+      return path.join(this.resolvePath(this.localPath), mapped);
     }
 
     return mapped; // For GitHub, just return the directory name
@@ -276,7 +291,7 @@ class SourceCodeManager {
    * Read file from local filesystem
    */
   async readLocalFile(serviceName, fileName) {
-    const filePath = path.resolve(__dirname, '..', this.localPath, serviceName, fileName);
+    const filePath = path.join(this.resolvePath(this.localPath), serviceName, fileName);
 
     try {
       const content = await fs.readFile(filePath, 'utf-8');
@@ -361,7 +376,7 @@ class SourceCodeManager {
    * List local files
    */
   async listLocalFiles(serviceName) {
-    const servicePath = path.resolve(__dirname, '..', this.localPath, serviceName);
+    const servicePath = path.join(this.resolvePath(this.localPath), serviceName);
 
     try {
       const files = await fs.readdir(servicePath);

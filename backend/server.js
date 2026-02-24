@@ -1272,12 +1272,17 @@ app.get('/api/metrics/history/:service', async (req, res) => {
 app.get('/api/export/full', async (req, res) => {
   const { startDate, endDate, service, format } = req.query;
 
+  const { includeResolutions, includePredictions } = req.query;
+
   try {
+    const fetchResolutions = includeResolutions !== 'false';
+    const fetchPredictions = includePredictions !== 'false';
+
     const [logs, errors, resolutions, predictions, metrics] = await Promise.all([
       logDatabase.searchLogs({ startDate, endDate, service, limit: 5000 }),
       logDatabase.getAllErrors({ startDate, endDate, service }),
-      logDatabase.getSimilarResolutions('', service, 100),
-      logDatabase.getActivePredictions(service),
+      fetchResolutions ? logDatabase.getSimilarResolutions('', service, 100) : Promise.resolve([]),
+      fetchPredictions ? logDatabase.getActivePredictions(service) : Promise.resolve([]),
       logDatabase.getMetricsHistory(service, 168) // 7 days
     ]);
 
@@ -1287,23 +1292,42 @@ app.get('/api/export/full', async (req, res) => {
       summary: {
         totalLogs: logs.length,
         totalErrors: errors.length,
-        totalResolutions: resolutions.length,
-        activePredictions: predictions.length,
+        totalResolutions: fetchResolutions ? resolutions.length : 'excluded',
+        activePredictions: fetchPredictions ? predictions.length : 'excluded',
         metricsDataPoints: metrics.length
       },
       logs,
       errors,
-      resolutions,
-      predictions,
+      ...(fetchResolutions && { resolutions }),
+      ...(fetchPredictions && { predictions }),
       metricsHistory: metrics
     };
 
     if (format === 'csv') {
-      // Convert to CSV format
-      const csvRows = ['timestamp,service,level,message'];
+      // Full CSV export: logs + errors + resolutions sections separated by blank lines
+      const csvRows = ['# LOGS', 'timestamp,service,level,message'];
       logs.forEach(log => {
         csvRows.push(`"${log.timestamp}","${log.service}","${log.level}","${(log.message || '').replace(/"/g, '""')}"`);
       });
+
+      csvRows.push('', '# ERRORS', 'first_seen,last_seen,service,message,occurrence_count,status');
+      errors.forEach(err => {
+        csvRows.push(`"${err.first_seen}","${err.last_seen}","${err.service}","${(err.message || '').replace(/"/g, '""')}","${err.occurrence_count}","${err.status}"`);
+      });
+
+      if (fetchResolutions && resolutions.length > 0) {
+        csvRows.push('', '# RESOLUTIONS', 'created_at,service,error_message,fix_description,was_successful');
+        resolutions.forEach(r => {
+          csvRows.push(`"${r.created_at}","${r.service}","${(r.error_message||'').replace(/"/g,'""')}","${(r.fix_description||'').replace(/"/g,'""')}","${r.was_successful}"`);
+        });
+      }
+
+      if (fetchPredictions && predictions.length > 0) {
+        csvRows.push('', '# PREDICTIONS', 'created_at,service,predicted_issue,confidence,time_horizon,status');
+        predictions.forEach(p => {
+          csvRows.push(`"${p.created_at}","${p.service}","${(p.predicted_issue||'').replace(/"/g,'""')}","${p.confidence}","${p.time_horizon}","${p.status}"`);
+        });
+      }
 
       res.setHeader('Content-Type', 'text/csv');
       res.setHeader('Content-Disposition', `attachment; filename=loglens-export-${Date.now()}.csv`);
@@ -1471,7 +1495,7 @@ server.listen(PORT, () => {
   console.log(`
 ╔═══════════════════════════════════════════════════════════╗
 ║                                                           ║
-║   🔍 LogLens Backend Server                               ║
+║   LogLens Backend Server                               ║
 ║   Real-Time Root Cause Analysis Dashboard                 ║
 ║                                                           ║
 ║   Server:    http://localhost:${PORT}                       ║

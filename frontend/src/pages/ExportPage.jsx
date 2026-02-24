@@ -57,7 +57,8 @@ function ExportPage({ logs, metrics, metricsHistory }) {
         const params = new URLSearchParams();
         if (startDate) params.append('startDate', startDate);
         if (endDate) params.append('endDate', endDate);
-        if (includeResolutions) params.append('includeResolutions', 'true');
+        params.append('includeResolutions', String(includeResolutions));
+        params.append('includePredictions', String(includePredictions));
         params.append('format', exportFormat);
 
         const endpoint = exportType === 'full' ? '/api/export/full' : '/api/export/errors';
@@ -72,7 +73,10 @@ function ExportPage({ logs, metrics, metricsHistory }) {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `loglens-${exportType}-${new Date().toISOString().split('T')[0]}.${exportFormat}`;
+        // Use server-provided filename if available, otherwise construct one
+        const disposition = response.headers.get('Content-Disposition') || '';
+        const serverFilename = disposition.match(/filename=([^;]+)/)?.[1];
+        a.download = serverFilename || `loglens-${exportType}-${new Date().toISOString().split('T')[0]}.${exportFormat}`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);

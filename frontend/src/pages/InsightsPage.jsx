@@ -6,7 +6,7 @@ import {
   RefreshCw, AlertOctagon
 } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:4000';
+const API_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_SOCKET_URL || 'http://localhost:4000';
 
 function InsightsPage({ metrics, metricsHistory, logs }) {
   const [errorTrends, setErrorTrends] = useState(null);
@@ -23,7 +23,7 @@ function InsightsPage({ metrics, metricsHistory, logs }) {
           setErrorTrends(data);
 
           // Generate predictions based on trends
-          generatePredictions(data);
+          generatePredictions(data, metrics);
         }
       } catch (error) {
         console.error('Failed to fetch error trends:', error);
@@ -37,11 +37,14 @@ function InsightsPage({ metrics, metricsHistory, logs }) {
     return () => clearInterval(interval);
   }, []);
 
-  // Generate predictive insights
-  const generatePredictions = (trends) => {
+  // Generate predictive insights — always replaces previous predictions
+  const generatePredictions = (trends, currentMetrics = metrics) => {
     const newPredictions = [];
 
-    if (!trends || !trends.byHour) return;
+    if (!trends || !trends.byHour) {
+      setPredictions([]); // Clear stale predictions if no data
+      return;
+    }
 
     const hourlyData = trends.byHour || [];
     const recentHours = hourlyData.slice(-6);
@@ -99,7 +102,7 @@ function InsightsPage({ metrics, metricsHistory, logs }) {
     }
 
     // Memory/CPU based predictions from current metrics
-    const highResourceServices = metrics.filter(m => m.memoryPercent > 80 || m.cpuPercent > 85);
+    const highResourceServices = (currentMetrics || []).filter(m => m.memoryPercent > 80 || m.cpuPercent > 85);
     highResourceServices.forEach(service => {
       if (service.memoryPercent > 80) {
         newPredictions.push({

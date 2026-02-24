@@ -405,6 +405,25 @@ class LogDatabase {
    * Get active predictions
    */
   async getActivePredictions(service = null) {
+    // Expire in-memory predictions older than 2 hours
+    const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
+    this.predictions = this.predictions.filter(p =>
+      p.status !== 'active' || new Date(p.created_at).getTime() > twoHoursAgo
+    );
+
+    // Deduplicate: keep only the most recent prediction per type+service combo
+    const seen = new Map();
+    const deduped = [];
+    for (let i = this.predictions.length - 1; i >= 0; i--) {
+      const p = this.predictions[i];
+      const key = `${p.prediction_type}|${p.service}`;
+      if (!seen.has(key)) {
+        seen.set(key, true);
+        deduped.unshift(p);
+      }
+    }
+    this.predictions = deduped;
+
     let results = this.predictions.filter(p => p.status === 'active');
 
     if (service) {

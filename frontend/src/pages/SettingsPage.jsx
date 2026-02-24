@@ -20,7 +20,7 @@ import {
   ArrowUp
 } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:4000';
+const API_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_SOCKET_URL || 'http://localhost:4000';
 
 function SettingsPage() {
   const [sourceConfig, setSourceConfig] = useState({

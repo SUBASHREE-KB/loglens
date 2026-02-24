@@ -58,6 +58,7 @@ function App() {
   } = useSocket();
 
   const [metricsHistory, setMetricsHistory] = useState({});
+  const [errorHistory, setErrorHistory] = useState([]); // Persists across log buffer rotation
 
   // Track metrics history
   useEffect(() => {
@@ -82,6 +83,18 @@ function App() {
     }
   }, [metrics]);
 
+  // Track error history from logs - persists the last 50 unique errors
+  useEffect(() => {
+    const errorLogs = logs.filter(l => ['ERROR', 'CRITICAL'].includes(l.level));
+    if (errorLogs.length === 0) return;
+    setErrorHistory(prev => {
+      const existingIds = new Set(prev.map(e => e.id));
+      const newErrors = errorLogs.filter(e => !existingIds.has(e.id));
+      if (newErrors.length === 0) return prev;
+      return [...prev, ...newErrors].slice(-50); // Keep last 50 unique errors
+    });
+  }, [logs]);
+
   // Auto-dismiss notifications after 5 seconds
   useEffect(() => {
     if (notification) {
@@ -98,6 +111,7 @@ function App() {
     logs,
     metrics,
     metricsHistory,
+    errorHistory,
     currentAnalysis,
     generatedFix,
     isAnalyzing,

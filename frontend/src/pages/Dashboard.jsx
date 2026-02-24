@@ -19,8 +19,7 @@ import PredictiveInsights from '../components/PredictiveInsights';
 import ErrorPanel from '../components/ErrorPanel';
 import Settings from '../components/Settings';
 
-function Dashboard({
-  connected,
+function Dashboard({connected,
   logs,
   metrics,
   metricsHistory,
@@ -30,8 +29,7 @@ function Dashboard({
   isGeneratingFix,
   triggerAnalysis,
   generateFix,
-  clearAnalysis
-}) {
+  clearAnalysis, errorHistory = []}) {
   const navigate = useNavigate();
   const [showErrorPanel, setShowErrorPanel] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -56,7 +54,9 @@ function Dashboard({
   };
 
   // Get error logs
-  const errorLogs = logs.filter(l => ['ERROR', 'CRITICAL'].includes(l.level)).slice(-10).reverse();
+  // Use persistent errorHistory (survives log buffer rotation) — fall back to live logs if not provided
+  const errorLogs = (errorHistory.length > 0 ? errorHistory : logs.filter(l => ['ERROR', 'CRITICAL'].includes(l.level)))
+    .slice(-10).reverse();
   const errorCount = errorLogs.length;
 
   // Get unique services from metrics

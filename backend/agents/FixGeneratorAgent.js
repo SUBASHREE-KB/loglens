@@ -5,7 +5,7 @@
 
 const { ChatGoogleGenerativeAI } = require('@langchain/google-genai');
 const { PromptTemplate } = require('@langchain/core/prompts');
-const { readServiceCode, mapServiceName } = require('../utils/codeReader');
+const sourceCodeManager = require('../services/SourceCodeManager'); // replaces legacy codeReader
 
 class FixGeneratorAgent {
   constructor(apiKey) {
@@ -84,12 +84,14 @@ Respond with valid JSON (no markdown code blocks, no backticks):
 
     // Get service name from codeLocation or analysis
     const serviceName = codeLocation?.serviceName || analysis?.originService || 'user-service';
-    const dirName = mapServiceName(serviceName);
+    const dirName = sourceCodeManager.mapServiceName(serviceName);
     const fileName = codeLocation?.fileName || 'index.js';
 
     try {
       // Read the full file content
-      const fullFileContent = await readServiceCode(dirName, fileName);
+      const fileResult = await sourceCodeManager.readFile(dirName, fileName);
+      const fullFileContent = fileResult ? fileResult.content : null;
+      if (!fullFileContent) throw new Error(`Could not read ${fileName} from ${dirName}`);
 
       // If no AI model, use template-based fix
       if (!this.model) {
@@ -136,7 +138,8 @@ Respond with valid JSON (no markdown code blocks, no backticks):
       // Try to read the actual code for template-based fix
       let originalCode = '// Could not read original file';
       try {
-        originalCode = await readServiceCode(dirName, fileName);
+        const origResult = await sourceCodeManager.readFile(dirName, fileName);
+          originalCode = origResult ? origResult.content : null;
       } catch (readError) {
         console.error('[FixGeneratorAgent] Could not read source code:', readError.message);
       }
