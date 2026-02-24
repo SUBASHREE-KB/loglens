@@ -21,6 +21,10 @@ LogLens is an intelligent observability platform that transforms microservice de
 - When errors occur, AI analyzes the root cause
 - You configure your source code path so LogLens can generate fixes
 
+**The Problem:** When a microservice fails at 3 AM, engineers spend hours grep-ing through logs, correlating events across services, and tracing error propagation. By the time the root cause is found, users have suffered and revenue has been lost.
+
+**The Solution:** LogLens automates this entire workflow. It watches your services, detects errors the moment they happen, uses AI to understand what went wrong, shows you exactly where the problem is in your code, and generates a fix you can apply with one click.
+
 ---
 
 ## Key Features
