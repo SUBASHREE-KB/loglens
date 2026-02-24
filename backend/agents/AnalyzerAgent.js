@@ -18,7 +18,7 @@ class AnalyzerAgent {
       apiKey: apiKey,
       model: 'gemini-2.5-flash',  // Use Flash for faster responses
       temperature: 0.2,
-      maxOutputTokens: 1024
+      maxOutputTokens: 4096  // Increased to prevent JSON truncation
     });
 
     this.timeout = 60000; // 60 second timeout (Gemini can be slow)
@@ -145,16 +145,22 @@ Respond ONLY with valid JSON (no markdown code blocks, no backticks):
       // Parse the response
       const analysis = this.parseResponse(response.content);
 
+      // Fix originService if parsing failed or returned Unknown
+      if (!analysis.originService || analysis.originService === 'Unknown' || analysis.originService.toLowerCase() === 'unknown') {
+        analysis.originService = correlatedData.originService || 'USER-SERVICE';
+      }
+
       console.log('[AnalyzerAgent] Analysis complete:', {
         rootCause: analysis.rootCause?.substring(0, 50),
-        severity: analysis.severity
+        severity: analysis.severity,
+        originService: analysis.originService
       });
 
       return {
         ...analysis,
         correlationId: correlatedData.errorId,
         timestamp: new Date().toISOString(),
-        confidence: 'high'
+        confidence: analysis.parseError ? 'low' : 'high'
       };
     } catch (error) {
       console.error('[AnalyzerAgent] Analysis failed:', error.message);
@@ -233,17 +239,54 @@ Respond ONLY with valid JSON (no markdown code blocks, no backticks):
       console.error('[AnalyzerAgent] Failed to parse response:', error.message);
       console.error('[AnalyzerAgent] Raw content:', content.substring(0, 500));
 
-      // Return a structured error response
+      // Try to extract partial data from truncated JSON
+      let partialRootCause = 'Unable to parse AI response';
+      let partialService = null;
+
+      // Try to extract rootCause from truncated response
+      const rootCauseMatch = content.match(/"rootCause"\s*:\s*"([^"]+)/);
+      if (rootCauseMatch) {
+        partialRootCause = rootCauseMatch[1];
+      }
+
+      // Try to extract originService from truncated response
+      const serviceMatch = content.match(/"originService"\s*:\s*"([^"]+)/);
+      if (serviceMatch) {
+        partialService = serviceMatch[1];
+      }
+
+      // Try to extract errorType
+      let partialErrorType = 'other';
+      const errorTypeMatch = content.match(/"errorType"\s*:\s*"([^"]+)/);
+      if (errorTypeMatch) {
+        partialErrorType = errorTypeMatch[1];
+      }
+
+      // Try to extract severity
+      let partialSeverity = 'MEDIUM';
+      const severityMatch = content.match(/"severity"\s*:\s*"([^"]+)/);
+      if (severityMatch) {
+        partialSeverity = severityMatch[1];
+      }
+
+      // Try to extract technicalDetails
+      let partialTechnicalDetails = `Error analysis detected a ${partialErrorType} issue in ${partialService || 'the service'}. ${partialRootCause}`;
+      const technicalMatch = content.match(/"technicalDetails"\s*:\s*"([^"]+)/);
+      if (technicalMatch) {
+        partialTechnicalDetails = technicalMatch[1];
+      }
+
+      // Return a structured error response (originService will be fixed by caller)
       return {
-        rootCause: 'Unable to parse AI response',
-        originService: 'Unknown',
-        errorType: 'other',
-        severity: 'MEDIUM',
+        rootCause: partialRootCause,
+        originService: partialService, // null means caller should use correlation data
+        errorType: partialErrorType,
+        severity: partialSeverity,
         propagationPath: [],
-        affectedServices: [],
+        affectedServices: partialService ? [partialService] : [],
         affectedEndpoints: [],
-        technicalDetails: content.substring(0, 500),
-        failingComponent: { service: 'unknown', file: 'unknown', function: 'unknown', line: null },
+        technicalDetails: partialTechnicalDetails,
+        failingComponent: { service: partialService || 'unknown', file: 'unknown', function: 'unknown', line: null },
         estimatedImpact: { usersAffected: 'unknown', dataAtRisk: 'none', serviceAvailability: 'unknown' },
         parseError: error.message
       };

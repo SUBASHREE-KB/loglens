@@ -19,7 +19,7 @@ class CodeLocatorAgent {
       apiKey: apiKey,
       model: 'gemini-2.5-flash',  // Use Flash for speed
       temperature: 0.2,
-      maxOutputTokens: 1024
+      maxOutputTokens: 2048  // Increased to prevent JSON truncation
     });
 
     this.timeout = 60000; // 60 second timeout
